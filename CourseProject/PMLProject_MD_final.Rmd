@@ -1,0 +1,172 @@
+PML Course Project
+------------------------
+This is an analysis for *Coursera* Practical Machine Learning Final Course Project.
+
+- Data Import
+- Data Slicing & Preprocessing
+- Model Building & Selection
+- Prediction
+
+
+**Step1. Data Import**
+
+
+The first step is to download the training and testing datasets. When downloading, the invalid valude(#DIV/0!) from csv files are treated as missing(NA) in R data.
+
+```{r , fig.width=4, fig.height=3,message=FALSE,echo=FALSE,warning=FALSE}
+library(caret)
+library(rpart)
+library(randomForest)
+
+library(rattle)
+library(rpart.plot)
+library(RColorBrewer)
+library(ISLR)
+library(ggplot2)
+
+
+set.seed(19618)
+
+DataTrain <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"),na.strings=c('NA','#DIV/0!',''))
+DataTest <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"),na.strings=c('NA','#DIV/0!',''))
+
+```
+By checking the training data, there are 19622 observations and 160 variables.
+
+
+**Step2. Data Slicing and Preprocessing**
+
+
+1. Split the training dataset to 60% training and 40% testing for model development.
+So the model will be developed on the 60% training portion with 11776 observations.
+
+2. Remove zero covariates.
+This step reduced the training dataset variable number from 160 to 129.
+
+3. Impute missing value.
+na.roughfix() function is used here. For numeric variables, NAs are replaced with medians; for factor variables, NAs are replaced with the most frequent levels.
+
+4. The first column is removed for model building.
+
+
+Preprocessing steps 2 to 4 are then also applied to testing datasets.
+
+Now the training dataset has 11776 observations and 127 varibles. The testing dataset has 7846 observations and 131 variables.
+
+
+
+```{r , fig.width=4, fig.height=3,message=FALSE,echo=TRUE,warning=FALSE}
+
+inTrain <-createDataPartition(y=DataTrain$classe, p=.6, list=FALSE)
+#str(inTrain)
+training <- DataTrain[inTrain,]
+testing <- DataTrain[-inTrain,]
+
+nsv <- nearZeroVar(training)
+#str(nsv)
+
+trainingFil <- training[,-nsv]
+#dim(trainingFil)
+
+#3. Impute missing value
+trainingFil30 <- na.roughfix(trainingFil)
+
+
+#4. Preprocessing Testing dataset
+nsvt <-nearZeroVar(testing)
+testingFil <-testing[,-nsvt]
+
+testingFil30 <- na.roughfix(testingFil)
+
+trainingFil3 <-trainingFil30[c(-1)]
+testingFil3 <-testingFil30[c(-1)]
+
+
+
+
+dim(trainingFil3)   
+dim(testingFil3)    
+
+#dim(trainingFil30)
+
+
+```
+
+
+**Step3. Model Building & Selection**
+
+1) Decision Tree
+```{r , fig.width=4, fig.height=3,message=FALSE,echo=TRUE,warning=FALSE}
+my_tree <- rpart(classe ~., trainingFil3,method="class")
+# Time to plot your fancy tree
+#fancyRpartPlot(my_tree)
+
+
+pred_tree <- predict(my_tree, testingFil3,type="class")
+
+
+drops <- c('amplitude_pitch_arm')
+trainingFil4<-trainingFil3[,!(names(trainingFil3)%in%drops)]   
+
+my_tree <- rpart(classe ~., trainingFil4,method="class")
+pred_tree <- predict(my_tree, testingFil3,type="class")
+confusionMatrix(pred_tree,testingFil3$classe)
+
+```
+
+when testing the model, there is 1 variable amplitude_pitch_arm not in testing data, so I droped it from original training dataset
+and adjusted the model accordingly.
+The model accuracy is 0.8694.
+
+
+2) Decision tree is not a stable model, so we further explore model with Random Forest.
+
+```{r , fig.width=4, fig.height=3,message=FALSE,echo=TRUE,warning=FALSE}
+
+#my_RF <-randomForest(classe~.,data=trainingFil3)
+#pred_RF <- predict(my_RF, testingFil3,type="class")
+
+
+drops <- c('amplitude_pitch_arm')
+trainingFil4<-trainingFil3[,!(names(trainingFil3)%in%drops)]   
+
+my_RF1 <- randomForest(classe ~., trainingFil4,method="class")
+pred_RF1 <- predict(my_RF1, testingFil3,type="class")
+confusionMatrix(pred_RF1,testingFil3$classe)
+
+
+```
+when testing the model, there is 1 variable amplitude_pitch_arm not in testing data, so I droped it from original training dataset
+and adjusted the model accordingly.
+The model accuracy is 0.9989, which is the better than decision tree.
+
+**So the Random Forest model is selected to predict the testing csv file.**
+
+
+**Step4. Prediction**
+
+When applying the Random Forest model to the cvs testing file, preprocessing steps are also applied.
+Resutls and Frequency of Results are as follows
+```{r , fig.width=4, fig.height=3,message=FALSE,echo=TRUE,warning=FALSE}
+nsvt <-nearZeroVar(DataTest)
+DT1<-DataTest[,-nsvt]
+
+DT2 <- na.roughfix(DT1)
+
+DT3 <-DT2[c(-1)]
+#dim(DT3)  #20, 58
+
+drops <- c('kurtosis_roll_belt','kurtosis_picth_belt','skewness_roll_belt','skewness_roll_belt',	'skewness_roll_belt.1',	'max_roll_belt','max_picth_belt',	'max_yaw_belt',	'min_roll_belt',	'min_pitch_belt',	'min_yaw_belt',	'amplitude_roll_belt','amplitude_pitch_belt',	'var_total_accel_belt',	'avg_roll_belt',	'stddev_roll_belt',	'var_roll_belt',	'avg_pitch_belt',	'stddev_pitch_belt',	'var_pitch_belt',	'avg_yaw_belt',		'stddev_yaw_belt',	'var_yaw_belt',	'var_accel_arm',	'kurtosis_roll_arm',	'kurtosis_picth_arm',	'kurtosis_yaw_arm',	'skewness_roll_arm',	'skewness_pitch_arm',	'skewness_yaw_arm',	'max_roll_arm',	'max_picth_arm',	'max_yaw_arm',	'min_roll_arm',	'min_yaw_arm',	'amplitude_pitch_arm',	'amplitude_yaw_arm',	'kurtosis_roll_dumbbell',	'kurtosis_picth_dumbbell','skewness_roll_dumbbell',	'skewness_pitch_dumbbell',	'max_roll_dumbbell',	'max_picth_dumbbell',	'max_yaw_dumbbell',	'min_roll_dumbbell',	'min_pitch_dumbbell',	'min_yaw_dumbbell',	'amplitude_roll_dumbbell',	'amplitude_pitch_dumbbell',	'var_accel_dumbbell',	'avg_roll_dumbbell',	'stddev_roll_dumbbell',	'var_roll_dumbbell',	'avg_pitch_dumbbell',	'stddev_pitch_dumbbell',	'var_pitch_dumbbell',	'avg_yaw_dumbbell',	'stddev_yaw_dumbbell',	'var_yaw_dumbbell','kurtosis_roll_forearm','kurtosis_picth_forearm','skewness_roll_forearm','skewness_pitch_forearm','max_roll_forearm','max_picth_forearm','max_yaw_forearm','min_roll_forearm','min_pitch_forearm','min_yaw_forearm','amplitude_pitch_forearm','var_accel_forearm','avg_roll_dumbbell','amplitude_roll_forearm')
+
+trainingFil4<-trainingFil3[,!(names(trainingFil3)%in%drops)]   
+#dim(trainingFil4)
+#str(trainingFil4)
+levels(DT3$user_name)<-levels(trainingFil4$user_name) 
+levels(DT3$cvtd_timestamp)<-levels(trainingFil4$cvtd_timestamp)
+#levels(DT3$classe)<-levels(trainingFil4$classe) 
+my_RF <- randomForest(classe ~., trainingFil4,method="class")
+pred_RF <- predict(my_RF, DT3,type="class")
+pred_RF
+summary(pred_RF)
+
+```
